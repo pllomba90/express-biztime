@@ -1,10 +1,14 @@
 const express = require("express");
 const router = new express.Router();
 const db = require("../db");
+const ExpressError = require("../expressError");
 
 router.get("/", async (req, res, next) => {
     try{
         const results = await db.query(`SELECT * FROM companies`);
+        if (results.length === 0){
+          throw new ExpressError("No results in table", 404);
+        }
         return res.json(results.rows);
     } catch(e){
        return next(e);
@@ -30,9 +34,9 @@ router.post("/", async (req, res, next)=> {
     try{
         let {name, description} = req.body;
         let code = name.slice(0,2);
-        const results = await db.query(`INSERT INTO companies (code, name, description)
+        const result = await db.query(`INSERT INTO companies (code, name, description)
         VALUES ($1, $2, $3) 
-        RETURNING code, name, description`);
+        RETURNING code, name, description`, [code, name, description]);
 
         return res.status(201).json({"company" : result.rows[0]});
     }catch(e){
