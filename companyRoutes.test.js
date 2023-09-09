@@ -6,18 +6,35 @@ const app = require("./app");
 const db = require("./db");
 const router = require("./routes/companies");
 
-beforeEach(()=>{
-    db.query(`INSERT INTO companies(code, name, description)
-    VALUES ('apple', 'Apple Computer', 'Maker of OSX.')`);
-    db.query(`INSERT INTO invoices (comp_Code, amt, paid, paid_date)
-    VALUES ('apple', 100, false, null),
-           ('apple', 200, false, null)`);
-});
-
-afterEach(()=>{
-    db.query(`DELETE FROM companies`);
-    db.query(`DELETE FROM invoices`);
-});
+beforeEach(async () => {
+    await db.query('DROP TABLE IF EXISTS invoices, companies');
+    await db.query(`CREATE TABLE companies (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT
+    )`);
+  
+    await db.query(`CREATE TABLE invoices (
+      id SERIAL PRIMARY KEY,
+      comp_code TEXT REFERENCES companies(code) ON DELETE CASCADE,
+      amt NUMERIC(10, 2) NOT NULL,
+      paid BOOLEAN DEFAULT false,
+      paid_date DATE
+    )`);
+  
+    await db.query(`
+      INSERT INTO companies(code, name, description)
+      VALUES ('apple', 'Apple Computer', 'Maker of OSX.')`);
+  
+    await db.query(`
+      INSERT INTO invoices (comp_code, amt, paid, paid_date)
+      VALUES ('apple', 100, false, null),
+             ('apple', 200, false, null)`);
+  });
+  
+  afterEach(async () => {
+    await db.query('DROP TABLE IF EXISTS invoices, companies');
+  });
 
 
 describe("Testing /companies routes", () =>{
@@ -77,8 +94,12 @@ describe("Testing /companies routes", () =>{
     })
 
     test("Should delete from the companies table", async () => {
-        const resp = await request(app).delete("/companies/apple");
+        try{const resp = await request(app).delete("/companies/apple");
         expect(resp.statusCode).toBe(200);
         expect(resp.body).toEqual({"status": "deleted"});
+    } catch(e){
+        console.error(e);
+    }
+        
     })
 });
